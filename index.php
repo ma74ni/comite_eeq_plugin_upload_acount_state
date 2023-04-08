@@ -1,146 +1,145 @@
 <?php
-/**
- * Plugin Name: Subir Estados de Cuenta
- * Plugin URI: http://digytalscript.com
- * Description: Subir los estados de cuenta
- * Author: Many
- * Version: 0.1
- * Author URI: http://www.holamany.com
- */
 
-function subir_data() {
-  //provides access to WP environment
-  require_once($_SERVER['DOCUMENT_ROOT'] . '/wp-load.php');  
+  /**
+   * Plugin Name: Subir Estados de Cuenta
+   * Plugin URI: http://digytalscript.com
+   * Description: Subir los estados de cuenta
+   * Author: Many
+   * Version: 1.1
+   * Author URI: http://www.holamany.com
+   */
 
+  function handlePost(): void
+  {
+    if ($_POST) {
+      global $wpdb;
 
- $user = wp_get_current_user();
-  if($user) {
+      $anio = $_POST['anio'];
+      $mes = $_POST['mes'];
+      $quincena = $_POST['quincena'];
+      $table = $wpdb -> prefix . 'users_states_account';
+      $arrayMeses = array(
+        "1" => array(
+          "1" => "01", "2" => "02",
+        ), "2" => array(
+          "1" => "03", "2" => "04",
+        ), "3" => array(
+          "1" => "05", "2" => "06",
+        ), "4" => array(
+          "1" => "07", "2" => "08",
+        ), "5" => array(
+          "1" => "09", "2" => "10",
+        ), "6" => array(
+          "1" => "11", "2" => "12",
+        ), "7" => array(
+          "1" => "13", "2" => "14",
+        ), "8" => array(
+          "1" => "15", "2" => "16",
+        ), "9" => array(
+          "1" => "17", "2" => "18",
+        ), "10" => array(
+          "1" => "19", "2" => "20",
+        ), "11" => array(
+          "1" => "21", "2" => "22",
+        ), "12" => array(
+          "1" => "23", "2" => "24",
+        )
+      );
+      $numUsaQuincena = $anio . $arrayMeses[$mes][$quincena];
+      $dataCount = $wpdb -> get_var(
+        "SELECT COUNT(*) FROM `wp_users_states_account`
+                WHERE usa_quincena = '$numUsaQuincena'");
 
-    global $wpdb;
+      handleDelete($dataCount, $numUsaQuincena, $table);
 
-  if($_POST){
-    $anio = $_POST['anio'];
-    $mes = $_POST['mes'];
-    $quincena = $_POST['quincena'];
-    $table = $wpdb->prefix.'users_states_account';
-    $array_meses = array (
-      "1" => array (
-        "1" => "01",
-        "2" => "02",
-      ),
-      "2" => array (
-        "1" => "03",
-        "2" => "04",
-      ),
-      "3" => array (
-        "1" => "05",
-        "2" => "06",
-      ),
-      "4" => array (
-        "1" => "07",
-        "2" => "08",
-      ),
-      "5" => array (
-        "1" => "09",
-        "2" => "10",
-      ),
-      "6" => array (
-        "1" => "11",
-        "2" => "12",
-      ),
-      "7" => array (
-        "1" => "13",
-        "2" => "14",
-      ),
-      "8" => array (
-        "1" => "15",
-        "2" => "16",
-      ),
-      "9" => array (
-        "1" => "17",
-        "2" => "18",
-      ),
-      "10" => array (
-        "1" => "19",
-        "2" => "20",
-      ),
-      "11" => array (
-        "1" => "21",
-        "2" => "22",
-      ),
-      "12" => array (
-        "1" => "23",
-        "2" => "24",
-      )
-    );
-    $num_usa_quincena = $anio . $array_meses[$mes][$quincena];
-    $data_count = $wpdb->get_var( "SELECT COUNT(*) FROM `wp_users_states_account` WHERE usa_quincena = '$num_usa_quincena'");
-
-    if($_FILES['upload']['name']) {
       $file = $_FILES['upload']['name'];
-      $filetype = wp_check_filetype( $file, null );
+      $filetype = wp_check_filetype($file, null);
       $extension = $filetype['ext'];
-      if( $data_count > 0) {
-        $delete = $wpdb -> prepare(
-            "DELETE FROM `$table`
-            WHERE usa_quincena = '$num_usa_quincena'"
-          );
-        $wpdb->query($delete);
-      }
-      if($extension == 'csv') {
-        $filename = $_FILES['upload']['tmp_name'];
-        $handle = fopen($filename, "r");
-        $row = 0;
-        while( ($data = fgetcsv($handle, 1000, ";") ) !== FALSE ){
-          $row++;
-          if ($row == 1) { continue; }
-          $sql = $wpdb -> prepare(
-            "INSERT INTO `$table` 
-            (`user_login`,`usa_solicitud`,`usa_codigo`,`usa_quincena`,`usa_habilitado`,`usa_empresa`,`usa_tipo`,`usa_subtipo`,`usa_producto`,`usa_saldo_ant`,`usa_capital`,`usa_interes`,`usa_dcto`,`usa_saldo_act`,`usa_anio`,`usa_mes`,`usa_num_quincena`) 
-            VALUES ('$data[15]', '$data[9]', '$data[0]', '$data[1]', '$data[4]', '$data[5]', '$data[6]', '$data[7]', '$data[8]', '$data[10]', '$data[11]', '$data[12]', '$data[13]', '$data[14]', '$anio', '$mes', '$quincena')"
-          );
-          $wpdb->query($sql);
-        }
-        echo '<div class="m-alert-success">Datos subidos con éxito</div>';
-         fclose($handle);
-      } else {
+
+      if (!$extension == 'csv') {
         echo '<div class="m-alert-warning">Algo salió mal, el archivo no se pudo subir</div>';
-        //wp_die();
+      }
+      $filename = $_FILES['upload']['tmp_name'];
+
+      if (($handle = fopen($filename, 'r')) !== false) {
+        $row = 0;
+        while (($data = fgetcsv($handle, 1000, ",")) !== false) {
+          $row++;
+          if ($row == 1) {
+            continue;
+          }
+          $userLogin = formatId($data[14]);
+          $solicitud = htmlspecialchars($data[8], ENT_QUOTES, 'UTF-8');
+          $codigo = $data[0];
+          $usaQuincena = $numUsaQuincena;
+          $habilitado = '0';
+          $empresa = $data[4];
+          $tipo = $data[5];
+          $subTipo = $data[6];
+          $producto = $data[7];
+          $saldoAnterior = $data[9];
+          $capital = $data[10];
+          $interes = $data[11];
+          $dcto = $data[12];
+          $saldoAct = $data[13];
+          $sql = $wpdb -> prepare("INSERT INTO `$table` VALUES (
+                            0,
+                            '$userLogin',
+                            '$solicitud',
+                            '$codigo',
+                            '$usaQuincena',
+                            '$habilitado',
+                            '$empresa',
+                            '$tipo',
+                            '$subTipo',
+                            '$producto',
+                            '$saldoAnterior',
+                            '$capital',
+                            '$interes',
+                            '$dcto',
+                            '$saldoAct',
+                            '$anio',
+                            '$mes',
+                            '$quincena',
+                            '1'
+                            )
+                            ");
+          $wpdb -> query($sql);
+        }
+        error_log($sql);
+        echo '<div class="m-alert-success">Datos subidos con éxito</div>';
+        fclose($handle);
       }
     }
   }
 
-    $anios = $wpdb->get_results(
-      "SELECT * 
-      FROM `wp_anios` WHERE state_anio = '1'");
+  function subirData()
+  {
+    $user = wp_get_current_user();
+    if ($user) {
+      handlePost();
+      $anios = getAnios();
+      $meses = getMeses();
 
-    $meses = $wpdb->get_results(
-      "SELECT * 
-      FROM `wp_meses`");
-      
-    $template = '
-    <div class="m-container my-5">
-      <h2>Subir Estados de Cuenta</h2>
-      <p>Seleccione un archivo .csv para subir.</p>
-      <form id="upload_form" action="" enctype="multipart/form-data" method="post" target="messages">
-        <div class="m-form-group">
-          <label for="anio">AÑO</label>
-          <select class="m-form-control" id="anio" name="anio">
-            <option value=""> -SELECCIONE-</option>';
-            foreach($anios as $anio) {
-              $template .= '<option value="'. $anio->name_anio .'">'. $anio->name_anio .'</option>';
-            }
-          $template .= '
+      $template = '
+      <div class="m-container my-5">
+        <h2>Subir Estados de Cuenta</h2>
+        <p>Seleccione un archivo .csv para subir.</p>
+        <form id="upload_form" action="" enctype="multipart/form-data" method="post" target="messages">
+          <div class="m-form-group">
+            <label for="anio">AÑO</label>
+            <select class="m-form-control" id="anio" name="anio">
+              <option value=""> -SELECCIONE-</option>';
+      $template .= cargarOptions($anios, 'anio');
+      $template .= '
           </select>
         </div>
         <div class="m-form-group">
           <label for="mes">MES</label>
            <select class="m-form-control" id="mes" name="mes">
             <option value=""> -SELECCIONE-</option>';
-            foreach($meses as $mese) {
-              $template .= '<option value="'. $mese->mes_id .'">'. $mese->mes_nombre .'</option>';
-            }
-          $template .= '
+      $template .= cargarOptions($meses, 'mes');
+      $template .= '
           </select>
         </div>
         <div class="m-form-group">
@@ -158,7 +157,52 @@ function subir_data() {
       </form>
     </div>
     ';
+      return $template;
+    }
+
+  }
+
+  add_shortcode("upload_est_cta", "subirData");
+
+  function getAnios()
+  {
+    global $wpdb;
+    return $wpdb -> get_results("SELECT * FROM `wp_anios` WHERE state_anio = '1'");
+  }
+
+  function getMeses()
+  {
+    global $wpdb;
+    return $wpdb -> get_results("SELECT * FROM `wp_meses`");
+  }
+
+  function cargarOptions($array, $type)
+  {
+    $template = '';
+    foreach ($array as $item) {
+      if ($type == 'anio') {
+        $template .= '<option value="' . $item -> name_anio . '">' . $item -> name_anio . '</option>';
+      }
+      if ($type == 'mes') {
+        $template .= '<option value="' . $item -> mes_id . '">' . $item -> mes_nombre . '</option>';
+      }
+    }
     return $template;
   }
-}
- add_shortcode("upload_est_cta", "subir_data");
+
+  function handleDelete($array, $numUsaQuincena, $table)
+  {
+    global $wpdb;
+
+    if ($array > 0) {
+      $delete = $wpdb -> prepare("DELETE FROM `$table`
+            WHERE usa_quincena = '$numUsaQuincena'");
+      $wpdb -> query($delete);
+    }
+  }
+
+  function formatId($id)
+  {
+    return strlen($id) < 10? str_pad($id, 10, "0", STR_PAD_LEFT) : $id;
+  }
+
