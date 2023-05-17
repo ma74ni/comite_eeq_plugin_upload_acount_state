@@ -5,7 +5,7 @@
    * Plugin URI: http://digytalscript.com
    * Description: Subir los estados de cuenta
    * Author: Many
-   * Version: 1.1
+   * Version: 1.2
    * Author URI: http://www.holamany.com
    */
 
@@ -63,7 +63,7 @@
 
       if (($handle = fopen($filename, 'r')) !== false) {
         $row = 0;
-        while (($data = fgetcsv($handle, 1000, ",")) !== false) {
+        while (($data = fgetcsv($handle, 0, ",")) !== false) {
           $row++;
           if ($row == 1) {
             continue;
